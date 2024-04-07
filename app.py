@@ -1,10 +1,9 @@
-import os
-import tempfile
 import streamlit as st
 from streamlit_chat import message
 from rag import ChatPDF
+import re
 
-st.set_page_config(page_title="ChatPDF")
+st.set_page_config(page_title="Confluence Semantic Search MVP")
 
 
 def display_messages():
@@ -15,7 +14,7 @@ def display_messages():
 
 
 def process_input():
-    if st.session_state["user_input"] and len(st.session_state["user_input"].strip()) > 0:
+    if st.session_state["user_input"] and len(st.session_state['user_input'].strip()) > 0:
         user_text = st.session_state["user_input"].strip()
         with st.session_state["thinking_spinner"], st.spinner(f"Thinking"):
             agent_text = st.session_state["assistant"].ask(user_text)
@@ -23,20 +22,12 @@ def process_input():
         st.session_state["messages"].append((user_text, True))
         st.session_state["messages"].append((agent_text, False))
 
-
-def read_and_save_file():
-    st.session_state["assistant"].clear()
-    st.session_state["messages"] = []
-    st.session_state["user_input"] = ""
-
-    for file in st.session_state["file_uploader"]:
-        with tempfile.NamedTemporaryFile(delete=False) as tf:
-            tf.write(file.getbuffer())
-            file_path = tf.name
-
-        with st.session_state["ingestion_spinner"], st.spinner(f"Ingesting {file.name}"):
-            st.session_state["assistant"].ingest(file_path)
-        os.remove(file_path)
+def process_url():
+    if st.session_state['url_input']:
+        with st.session_state['thinking_spinner'], st.spinner(f'Fetching Website...'):
+            st.session_state['assistant'].ingest(st.session_state['url_input'])
+    else:
+        print('url was invalid')
 
 
 def page():
@@ -44,18 +35,10 @@ def page():
         st.session_state["messages"] = []
         st.session_state["assistant"] = ChatPDF()
 
-    st.header("ChatPDF")
+    st.header("Confluence Semantic Search MVP")
 
     st.subheader("Upload a document")
-    st.file_uploader(
-        "Upload document",
-        type=["pdf"],
-        key="file_uploader",
-        on_change=read_and_save_file,
-        label_visibility="collapsed",
-        accept_multiple_files=True,
-    )
-
+    st.text_input('URL', key='url_input', on_change=process_url)
     st.session_state["ingestion_spinner"] = st.empty()
 
     display_messages()

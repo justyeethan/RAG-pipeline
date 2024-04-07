@@ -1,8 +1,8 @@
 
 from langchain_community.vectorstores import Chroma
 from langchain_community.chat_models import ChatOllama
-from langchain_community.embeddings import FastEmbedEmbeddings
-from langchain_community.document_loaders import PyPDFLoader, WebBaseLoader
+from langchain_community.embeddings import GPT4AllEmbeddings
+from langchain_community.document_loaders import WebBaseLoader
 from langchain.chains import RetrievalQA
 from langchain.schema.output_parser import StrOutputParser
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -39,7 +39,7 @@ class ChatPDF:
         chunks = filter_complex_metadata(chunks)
 
         vector_store = Chroma.from_documents(
-            documents=chunks, embedding=FastEmbedEmbeddings())
+            documents=chunks, embedding=GPT4AllEmbeddings())
         self.retriever = vector_store.as_retriever(
             search_type="similarity_score_threshold",
             search_kwargs={
@@ -48,16 +48,15 @@ class ChatPDF:
             },
         )
 
-        self.chain = ({"context": self.retriever, "question": RunnablePassthrough()}
-                      | self.prompt
-                      | self.model
-                      | StrOutputParser())
+        self.chain = RetrievalQA.from_chain_type(self.model, retriever=vector_store.as_retriever())
+
 
     def ask(self, query: str):
         if not self.chain:
             return "Please, add a URL first."
-
-        return self.chain.invoke(query)
+        invocation = self.chain.invoke(query)
+        print(invocation)
+        return invocation['result']
 
     def clear(self):
         self.vector_store = None
